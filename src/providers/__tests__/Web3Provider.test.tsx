@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { queryClient } from '@/providers/Web3Provider';
+import { queryClient } from '@/providers/web3Utils';
 
 describe('QueryClient MutationCache Error Logger', () => {
 	let consoleDebugSpy: ReturnType<typeof vi.spyOn>;

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useCreatorDetail } from '@/hooks/useCreators';
 import { useCreatorProfileStaleIndicator } from '@/hooks/useCreatorProfileStaleIndicator';
@@ -18,9 +19,12 @@ import { ApiError } from '@/services/api.service';
 import { useNavigationTiming } from '@/hooks/useNavigationTiming';
 import { useKeyHolders } from '@/hooks/useKeyHolders';
 import { useProfileStore } from '@/hooks/useProfileStore';
-import { useWalletHoldings } from '@/hooks/useWallet';
+import { useTradeMutation, useWalletHoldings } from '@/hooks/useWallet';
 import CoCreatorSection from '@/components/creator/CoCreatorSection';
 import ShareTwitterButton from '@/components/common/ShareTwitterButton';
+import { Button } from '@/components/ui/button';
+import showToast from '@/utils/toast.util';
+import { playFirstPurchaseConfetti } from '@/utils/firstPurchaseConfetti';
 
 function CreatorDetailPageContent() {
 	const { id } = useParams<{ id: string }>();
@@ -43,9 +47,20 @@ function CreatorDetailPageContent() {
 	// User holdings for Share to X button
 	const profile = useProfileStore(state => state.profile);
 	const userAddress = profile?.id;
+	const tradeAddress = userAddress ?? 'demo-wallet-address';
+	const tradeMutation = useTradeMutation(tradeAddress);
+	const [isBuying, setIsBuying] = useState(false);
+	const confettiCleanupRef = useRef<(() => void) | null>(null);
 	const { data: holdings = [] } = useWalletHoldings(userAddress ?? '');
 	const userPosition = holdings.find(h => h.creatorId === (id || ''));
 	const holdingsCount = userPosition?.quantity ?? 0;
+
+	useEffect(
+		() => () => {
+			confettiCleanupRef.current?.();
+		},
+		[]
+	);
 
 	// Track stale data indicator
 	const { shouldShowBadge, handleRefetch } = useCreatorProfileStaleIndicator(
@@ -113,6 +128,28 @@ function CreatorDetailPageContent() {
 		},
 	];
 
+	const handleBuyDemoKey = async () => {
+		setIsBuying(true);
+		try {
+			showToast.loading(`Purchasing a key from ${creator.title}...`);
+			await tradeMutation.mutateAsync({
+				creatorId: creator.id,
+				amount: 1,
+				priceStroops: resolveCreatorKeyPriceStroops(creator),
+				price: creator.price,
+			});
+			confettiCleanupRef.current = playFirstPurchaseConfetti();
+			showToast.transactionSuccess(
+				'Purchase confirmed',
+				`Bought 1 key from ${creator.title}`
+			);
+		} catch {
+			// useTradeMutation presents the transaction error to the user.
+		} finally {
+			setIsBuying(false);
+		}
+	};
+
 	const chartData = (creator.priceHistory && creator.priceHistory.length > 0
 		? creator.priceHistory
 		: [1000000, 1200000, 1500000, 1800000, 2000000]
@@ -174,15 +211,25 @@ function CreatorDetailPageContent() {
 
 				{/* Share to X Button (only visible for authenticated holders) */}
 				<div className="flex justify-end">
-					<ShareTwitterButton
-						creatorId={creator.id}
-						creatorName={creator.title}
-						priceXlm={formatDisplayKeyPrice(
-							resolveCreatorKeyPriceStroops(creator)
-						).replace(' XLM', '')}
-						userAddress={userAddress}
-						userHoldingsCount={holdingsCount}
-					/>
+					<div className="flex flex-wrap items-center gap-3">
+						<Button
+							type="button"
+							onClick={handleBuyDemoKey}
+							disabled={isBuying}
+							className="bg-amber-400 font-bold text-slate-950 hover:bg-amber-300"
+						>
+							{isBuying ? 'Confirming purchase…' : 'Buy 1 key'}
+						</Button>
+						<ShareTwitterButton
+							creatorId={creator.id}
+							creatorName={creator.title}
+							priceXlm={formatDisplayKeyPrice(
+								resolveCreatorKeyPriceStroops(creator)
+							).replace(' XLM', '')}
+							userAddress={userAddress}
+							userHoldingsCount={holdingsCount}
+						/>
+					</div>
 				</div>
 
 				{/* Staking Rewards */}

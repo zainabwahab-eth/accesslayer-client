@@ -5,13 +5,10 @@ import { createBrowserRouter, RouterProvider } from 'react-router';
 import AppErrorBoundary from './components/common/AppErrorBoundary';
 import OfflineBanner from './components/common/OfflineBanner';
 import { routes } from './routes';
-import { useRouteChangeLogging } from './hooks/useRouteChangeLogging';
 
 const router = createBrowserRouter(routes);
 
 function App() {
-	useRouteChangeLogging();
-
 	useEffect(() => {
 		const lenis = new Lenis({
 			duration: 1.2,

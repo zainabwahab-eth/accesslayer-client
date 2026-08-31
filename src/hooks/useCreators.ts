@@ -7,6 +7,26 @@ import {
 } from '@/services/course.service';
 import showToast from '@/utils/toast.util';
 
+export const DEMO_CREATOR: Course = {
+	id: '1',
+	title: 'Lena Markov',
+	description:
+		'Digital artist and illustrator. Drops exclusive prints and behind-the-scenes content for key holders.',
+	price: 12.4,
+	priceStroops: 124_000_000,
+	creatorShareSupply: 214,
+	instructorId: 'lenamarkov',
+	socialHandle: 'lenamarkov',
+	category: 'Art',
+	level: 'INTERMEDIATE',
+	isVerified: true,
+	change24h: 8.2,
+	volume24h: 3.1,
+	creatorFeeBps: 500,
+	protocolFeeBps: 250,
+	priceHistory: [82_000_000, 91_000_000, 98_000_000, 110_000_000, 124_000_000],
+};
+
 export function useCreatorList(params?: GetCoursesParams) {
 	return useQuery({
 		queryKey: queryKeys.creators.list(params),
@@ -17,7 +37,14 @@ export function useCreatorList(params?: GetCoursesParams) {
 export function useCreatorDetail(id: string) {
 	return useQuery({
 		queryKey: queryKeys.creators.detail(id),
-		queryFn: () => courseService.getCourse(id),
+		queryFn: async () => {
+			try {
+				return await courseService.getCourse(id);
+			} catch (error) {
+				if (id === DEMO_CREATOR.id) return DEMO_CREATOR;
+				throw error;
+			}
+		},
 		enabled: !!id,
 	});
 }
@@ -47,5 +74,4 @@ export function useSetCoCreator(courseId: string) {
 		},
 	});
 }
-
 
