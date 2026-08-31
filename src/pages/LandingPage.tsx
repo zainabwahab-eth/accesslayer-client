@@ -78,6 +78,7 @@ import CreatorListPagination from '@/components/common/CreatorListPagination';
 import CreatorListGroupSeparator from '@/components/common/CreatorListGroupSeparator';
 import MarketplaceSidebar from '@/components/common/MarketplaceSidebar';
 import { copyTextToClipboard } from '@/utils/clipboard.utils';
+import { playFirstPurchaseConfetti } from '@/utils/firstPurchaseConfetti';
 
 const FEATURED_CREATOR_FACTS = [
 	{ label: 'Membership', value: 'Collectors Circle' },
@@ -330,6 +331,7 @@ function LandingPage() {
 	});
 	const pendingScrollRestoreRef = useRef<number | null>(null);
 	const shortcutConfirmationTimerRef = useRef<number | null>(null);
+	const firstPurchaseConfettiCleanupRef = useRef<(() => void) | null>(null);
 
 	// Keep refs in sync with state
 	searchQueryRef.current = searchQuery;
@@ -472,6 +474,7 @@ function LandingPage() {
 			if (shortcutConfirmationTimerRef.current != null) {
 				window.clearTimeout(shortcutConfirmationTimerRef.current);
 			}
+			firstPurchaseConfettiCleanupRef.current?.();
 		};
 	}, []);
 
@@ -885,6 +888,8 @@ function LandingPage() {
 						price: featuredCreator?.price,
 						ref: urlRef,
 					});
+				firstPurchaseConfettiCleanupRef.current =
+					playFirstPurchaseConfetti();
 				setFeaturedHoldings(current => current + amount);
 				showToast.transactionSuccess(
 					'Trade confirmed',
