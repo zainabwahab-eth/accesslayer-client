@@ -41,6 +41,8 @@ export interface TradeDialogProps {
 	protocolFeeBps?: number;
 	/** Creator fee in basis points for fee preview (defaults to FEE_BOUNDS.DEFAULT_FEE_BPS) */
 	creatorFeeBps?: number;
+	/** Max buy quantity allowed per transaction; null means no limit. */
+	maxBuyQuantity?: number | null;
 	onOpenChange: (open: boolean) => void;
 	onConfirm: (
 		amount: number,
@@ -58,6 +60,7 @@ const TradeDialog: React.FC<TradeDialogProps> = ({
 	currentSupply,
 	protocolFeeBps = FEE_BOUNDS.DEFAULT_FEE_BPS,
 	creatorFeeBps = FEE_BOUNDS.DEFAULT_FEE_BPS,
+	maxBuyQuantity = null,
 	onOpenChange,
 	onConfirm,
 	isSubmitting = false,
@@ -115,10 +118,17 @@ const TradeDialog: React.FC<TradeDialogProps> = ({
 		if (!Number.isFinite(parsedAmount))
 			return 'Amount must be a valid number.';
 		if (parsedAmount <= 0) return 'Amount must be greater than zero.';
+		if (
+			side === 'buy' &&
+			maxBuyQuantity != null &&
+			parsedAmount > maxBuyQuantity
+		) {
+			return `Maximum ${formatNumber(maxBuyQuantity)} keys per transaction for this key`;
+		}
 		if (side === 'sell' && parsedAmount > availableHoldings)
 			return `You can't sell more than your holdings (${formatNumber(availableHoldings)} keys).`;
 		return null;
-	}, [amountText, parsedAmount, side, availableHoldings]);
+	}, [amountText, parsedAmount, side, maxBuyQuantity, availableHoldings]);
 
 	const amountValid = validationError === null;
 	const showError = touched && validationError !== null;

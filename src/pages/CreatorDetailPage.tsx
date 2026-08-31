@@ -1,4 +1,5 @@
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import { useEffect, useState } from 'react';
 import { useCreatorDetail } from '@/hooks/useCreators';
 import { useCreatorProfileStaleIndicator } from '@/hooks/useCreatorProfileStaleIndicator';
 import CreatorBreadcrumb from '@/components/common/CreatorBreadcrumb';
@@ -9,10 +10,14 @@ import CreatorProfileStaleIndicator from '@/components/common/CreatorProfileStal
 import CreatorProfileStatRow from '@/components/common/CreatorProfileStatRow';
 import { BondingCurveChart } from '@/components/common/BondingCurveChart';
 import KeyHolderList from '@/components/common/KeyHolderList';
+import HolderConcentrationChart from '@/components/common/HolderConcentrationChart';
 import StakingRewardsSection from '@/components/common/StakingRewardsSection';
 import { CreatorDashboardSkeleton } from '@/components/common/CreatorSkeleton';
 import { bpsToPercent, formatNumber } from '@/utils/numberFormat.utils';
-import { resolveCreatorKeyPriceStroops, formatDisplayKeyPrice } from '@/utils/keyPriceDisplay.utils';
+import {
+	resolveCreatorKeyPriceStroops,
+	formatDisplayKeyPrice,
+} from '@/utils/keyPriceDisplay.utils';
 import KeyDetailPageErrorBoundary from '@/components/common/KeyDetailPageErrorBoundary';
 import { ApiError } from '@/services/api.service';
 import { useNavigationTiming } from '@/hooks/useNavigationTiming';
@@ -21,9 +26,16 @@ import { useProfileStore } from '@/hooks/useProfileStore';
 import { useWalletHoldings } from '@/hooks/useWallet';
 import CoCreatorSection from '@/components/creator/CoCreatorSection';
 import ShareTwitterButton from '@/components/common/ShareTwitterButton';
+import { usePurchaseConfetti } from '@/hooks/usePurchaseConfetti';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 function CreatorDetailPageContent() {
+	usePurchaseConfetti();
+
 	const { id } = useParams<{ id: string }>();
+	const location = useLocation();
+	const navigate = useNavigate();
+	const [hasMounted, setHasMounted] = useState(false);
 	const {
 		data: creator,
 		isLoading,
@@ -32,13 +44,14 @@ function CreatorDetailPageContent() {
 		refetch,
 	} = useCreatorDetail(id || '');
 	useNavigationTiming('creator_profile');
+	useDocumentTitle(creator ? `${creator.title} — AccessLayer` : null);
 
-	const {
-		holders,
-		hasNextPage,
-		isFetchingNextPage,
-		fetchNextPage,
-	} = useKeyHolders(id || '');
+	useEffect(() => {
+		setHasMounted(true);
+	}, []);
+
+	const { holders, hasNextPage, isFetchingNextPage, fetchNextPage } =
+		useKeyHolders(id || '');
 
 	// User holdings for Share to X button
 	const profile = useProfileStore(state => state.profile);
@@ -70,8 +83,12 @@ function CreatorDetailPageContent() {
 		if (is404) {
 			return (
 				<main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#06111f] px-6 py-16 text-center text-white">
-					<h1 className="font-grotesque text-3xl font-black">Creator not found</h1>
-					<p className="text-white/70 font-jakarta">We couldn't find a creator with that ID.</p>
+					<h1 className="font-grotesque text-3xl font-black">
+						Creator not found
+					</h1>
+					<p className="text-white/70 font-jakarta">
+						We couldn't find a creator with that ID.
+					</p>
 					<Link to="/creators" className="text-amber-400 hover:underline">
 						Back to creators
 					</Link>
@@ -109,25 +126,22 @@ function CreatorDetailPageContent() {
 		},
 		{
 			label: 'Total Holders',
-			value: formatNumber(creator.creatorShareSupply ? Math.ceil(creator.creatorShareSupply / 2) : 10),
+			value: formatNumber(
+				creator.creatorShareSupply
+					? Math.ceil(creator.creatorShareSupply / 2)
+					: 10
+			),
 		},
 	];
 
-	const chartData = (creator.priceHistory && creator.priceHistory.length > 0
-		? creator.priceHistory
-		: [1000000, 1200000, 1500000, 1800000, 2000000]
+	const chartData = (
+		creator.priceHistory && creator.priceHistory.length > 0
+			? creator.priceHistory
+			: [1000000, 1200000, 1500000, 1800000, 2000000]
 	).map((priceStroops, index) => ({
 		supply: (index + 1) * 20,
 		priceXLM: priceStroops / 10_000_000,
 	}));
-
-	const defaultHolders = [
-		{ id: 'h1', displayName: 'Early Adopter', keyCount: 25, stakedQuantity: 18 },
-		{ id: 'h2', displayName: 'Alpha Collector', keyCount: 15, stakedQuantity: 5 },
-		{ id: 'h3', displayName: 'Key Holder 3', keyCount: 10, stakedQuantity: 0 },
-		{ id: 'h4', displayName: 'Key Holder 4', keyCount: 8, stakedQuantity: 0 },
-		{ id: 'h5', displayName: 'Key Holder 5', keyCount: 5, stakedQuantity: 2 },
-	];
 
 	const hasRealStakingData =
 		creator.stakingPoolBalance != null ||
@@ -165,6 +179,14 @@ function CreatorDetailPageContent() {
 					avatarUrl={creator.thumbnail}
 					bio={creator.description}
 					priceStroops={resolveCreatorKeyPriceStroops(creator)}
+					showBackButton={hasMounted}
+					onBack={() => {
+						if (window.history.length > 1 && location.key !== 'default') {
+							navigate(-1);
+							return;
+						}
+						navigate('/creators');
+					}}
 				/>
 
 				{/* 4 Stat Cards */}
@@ -186,10 +208,7 @@ function CreatorDetailPageContent() {
 				</div>
 
 				{/* Staking Rewards */}
-				<StakingRewardsSection
-					{...stakingStats}
-					isLoading={isLoading}
-				/>
+				<StakingRewardsSection {...stakingStats} isLoading={isLoading} />
 
 				{/* Price Chart */}
 				<div
@@ -206,15 +225,18 @@ function CreatorDetailPageContent() {
 					/>
 				</div>
 
-				{/* Key Holders Table */}
+				{/* Holder Concentration */}
 				<div
 					className="rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 shadow-2xl backdrop-blur-md md:p-8"
-					data-testid="creator-holders-container"
+					data-testid="holder-concentration-container"
 				>
 					<h2 className="font-grotesque text-xl font-black tracking-tight text-white mb-6">
-						Top Key Holders
+						Holder Concentration
 					</h2>
-					<KeyHolderList holders={defaultHolders} />
+					<HolderConcentrationChart
+						holders={holders}
+						totalSupply={creator.creatorShareSupply}
+					/>
 				</div>
 
 				{/* Fee Structure */}
@@ -250,7 +272,9 @@ function CreatorDetailPageContent() {
 						holders={holders}
 						hasNextPage={hasNextPage}
 						isFetchingNextPage={isFetchingNextPage}
-						fetchNextPage={() => { void fetchNextPage(); }}
+						fetchNextPage={() => {
+							void fetchNextPage();
+						}}
 					/>
 				</div>
 				<div className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 shadow-2xl backdrop-blur-md md:p-8">

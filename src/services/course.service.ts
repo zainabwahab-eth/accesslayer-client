@@ -25,6 +25,8 @@ export interface Course {
 	isPinned?: boolean;
 	creatorFeeBps?: number;
 	protocolFeeBps?: number;
+	/** Max keys that can be bought in a single transaction; null means no limit. */
+	maxBuyQuantity?: number | null;
 	/** Last up to 7 price history points in stroops, oldest to newest. */
 	priceHistory?: number[];
 	holderCount?: number;
@@ -62,10 +64,7 @@ export interface Course {
 }
 
 export type CourseSortOption =
-	| 'volume_desc'
-	| 'price_asc'
-	| 'price_desc'
-	| 'newest';
+	'volume_desc' | 'price_asc' | 'price_desc' | 'newest';
 
 export interface GetCoursesParams {
 	page?: number;
